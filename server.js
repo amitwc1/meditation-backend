@@ -84,23 +84,23 @@ const db = mysql.createPool({
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'meditation_app',
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: isVercel ? 2 : 10,
     queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0,
+    ...(isVercel ? {} : { enableKeepAlive: true, keepAliveInitialDelay: 0 }),
 });
 
-// Database health check on startup
-(async () => {
-    try {
-        const connection = await db.getConnection();
-        console.log('✓ Database connected successfully');
-        connection.release();
-    } catch (err) {
-        console.error('✗ Database connection failed:', err.message);
-        if (isProduction) process.exit(1);
-    }
-})();
+// Database health check on startup (non-fatal for serverless)
+if (!isVercel) {
+    (async () => {
+        try {
+            const connection = await db.getConnection();
+            console.log('✓ Database connected successfully');
+            connection.release();
+        } catch (err) {
+            console.error('✗ Database connection failed:', err.message);
+        }
+    })();
+}
 
 // ─── Multer Storage Configuration ──────────────────────────────────────
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -110,7 +110,8 @@ const MAX_FILE_SIZE = parseInt(process.env.UPLOAD_MAX_SIZE) || 52428800; // 50MB
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const isAudio = ALLOWED_AUDIO_TYPES.includes(file.mimetype);
-        const dir = isAudio ? 'uploads/audio' : 'uploads/images';
+        const dir = path.join(UPLOAD_BASE, isAudio ? 'uploads/audio' : 'uploads/images');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
     filename: (req, file, cb) => {
