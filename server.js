@@ -43,9 +43,9 @@ const corsOrigins = process.env.CORS_ORIGIN
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false,
 }));
+app.options('*', cors()); // Enable pre-flight across-the-board
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
