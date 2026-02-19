@@ -170,11 +170,26 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 // ─── Health Check ──────────────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+    let dbStatus = 'unknown';
+    try {
+        const conn = await db.getConnection();
+        await conn.ping();
+        dbStatus = 'connected';
+        conn.release();
+    } catch (e) {
+        dbStatus = `error: ${e.message}`;
+    }
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',
+        isVercel: isVercel,
+        database: dbStatus,
+        dbHost: process.env.DB_HOST ? 'set' : 'missing',
+        dbUser: process.env.DB_USER ? 'set' : 'missing',
+        dbName: process.env.DB_NAME ? 'set' : 'missing',
+        dbPass: process.env.DB_PASSWORD ? 'set' : 'missing',
     });
 });
 
