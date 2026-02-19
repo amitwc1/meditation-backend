@@ -13,6 +13,7 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 5001;
 const isProduction = process.env.NODE_ENV === 'production';
+const isVercel = !!process.env.VERCEL;
 const JWT_SECRET = process.env.JWT_SECRET || 'secret_key';
 
 // ─── Security Middleware ───────────────────────────────────────────────
@@ -64,11 +65,15 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 }));
 
 // ─── Upload Directories ────────────────────────────────────────────────
-const uploadDirs = ['uploads', 'uploads/images', 'uploads/audio'];
+const UPLOAD_BASE = isVercel ? '/tmp' : __dirname;
+const uploadDirs = [
+    path.join(UPLOAD_BASE, 'uploads'),
+    path.join(UPLOAD_BASE, 'uploads/images'),
+    path.join(UPLOAD_BASE, 'uploads/audio'),
+];
 uploadDirs.forEach(dir => {
-    const fullPath = path.join(__dirname, dir);
-    if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
     }
 });
 
@@ -556,9 +561,14 @@ app.use((req, res) => {
 });
 
 // ─── Start Server ──────────────────────────────────────────────────────
-app.listen(PORT, () => {
-    console.log(`\n🧘 Meditation API Server`);
-    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`   Port: ${PORT}`);
-    console.log(`   Ready at: http://localhost:${PORT}/api/health\n`);
-});
+if (!isVercel) {
+    app.listen(PORT, () => {
+        console.log(`\n🧘 Meditation API Server`);
+        console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`   Port: ${PORT}`);
+        console.log(`   Ready at: http://localhost:${PORT}/api/health\n`);
+    });
+}
+
+// Export for Vercel serverless
+module.exports = app;
